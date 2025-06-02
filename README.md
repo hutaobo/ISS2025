@@ -33,6 +33,8 @@ New things will be added soon (scroll down).
 # decoding module:
 The major update in the decoding module is the enabling of the *dense mode*. This new modality allows (with a considerable computation time cost) to perform spot detection in individual channels, while the old modality enforced a pseudoanchor detection, producing a spot underestimation in crowded images. Please refer to the notebook for details.
 
+A secondary quality measure has been introduced. The measure reports the ratio between the intensity of the "true" channel and the second strongest secondary channel. This helps differentiating, for intermediate QC scores, between a high background across channels, or the co-occurrence of 2 colours on the same spot.
+
 # postprocessing module:
 The way Cellpose was set up in our original functions was defaulting to CPU. I think this is because our code was so old we didn't really use GPUs at the time. Now the function is updated to default to GPU use whenever available.
 I split the notebooks and created new ones in a more modular structure for didactic purposes. Now there is a specific notebook for each segmentation tool available (Cellpose or Stardist), plus a notebook that allows to inspect the segmentation mask over DAPI, or even to export the mask for TissUUmaps visualization.
