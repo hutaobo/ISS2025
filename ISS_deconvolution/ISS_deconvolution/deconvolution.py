@@ -271,20 +271,67 @@ def deconvolve_czi(input_file, outpath, image_dimensions=[2048, 2048], PSF_metad
     return "Processing complete."
     
 
+def deconvolve_leica(input_dir, 
+                     output_dir_prefix, 
+                     cycle,
+                     deconvolution_method=None,
+                     PSF_metadata=None, 
+                     mode='tif_autosaved',
+                     mip=True,
+                     image_dimensions=[2048, 2048],
+                     chunk_size=None):
+
+    valid_modes = {'tif_autosaved', 'tif_exported', 'lif'}
+
+    if mode not in valid_modes:
+        raise ValueError(f"Unsupported mode: {mode}. Choose from {valid_modes}.")
+
+    if mode == 'tif_autosaved':
+        deconvolve_tif(input_dir=input_dir, 
+                       output_dir_prefix=output_dir_prefix, 
+                       cycle=cycle,
+                       deconvolution_method=deconvolution_method,
+                       PSF_metadata=PSF_metadata, 
+                       mip=mip,
+                       image_dimensions=image_dimensions,
+                       chunk_size=chunk_size,
+                       mode='autosaved')
+
+    elif mode == 'tif_exported':
+        deconvolve_tif(input_dir=input_dir, 
+                       output_dir_prefix=output_dir_prefix, 
+                       cycle=cycle,
+                       deconvolution_method=deconvolution_method,
+                       PSF_metadata=PSF_metadata, 
+                       mip=mip,
+                       image_dimensions=image_dimensions,
+                       chunk_size=chunk_size,
+                       mode='exported')
+
+    elif mode == 'lif':
+        deconvolve_lif(input_dir=input_dir, 
+                       output_dir_prefix=output_dir_prefix, 
+                       cycle=cycle,
+                       deconvolution_method=deconvolution_method,
+                       PSF_metadata=PSF_metadata, 
+                       mip=mip,
+                       image_dimensions=image_dimensions,
+                       chunk_size=chunk_size)
 
 # -------------------------------------------------------------------------------------
 # LEICA EXPORTED + AUTOSAVED
 # -------------------------------------------------------------------------------------
 
-def deconvolve_leica(input_dir, 
-                     output_dir_prefix, 
-                     cycle,
-                     deconvolution_method,
-                     image_dimensions=[2048, 2048], 
-                     PSF_metadata=None, 
-                     chunk_size=None, 
-                     mip=True,
-                     mode='autosaved'):
+def deconvolve_tif(input_dir, 
+                      output_dir_prefix, 
+                      cycle,
+                      deconvolution_method,
+                      PSF_metadata, 
+                      mip,
+                      image_dimensions,
+                      chunk_size,
+                      mode):
+ 
     """
     Process the images from the given directories.
 
@@ -589,7 +636,15 @@ def deconvolve_leica(input_dir,
 # LEICA LIF
 # -------------------------------------------------------------------------------------
 
-def deconvolve_lif(input_dir, output_dir_prefix, cycle=None, PSF_metadata=None, chunk_size=None,  tile_size_x=2048, tile_size_y=2048, deconvolution_method='redlionfish', mip=True):
+def deconvolve_lif(input_dir, 
+                      output_dir_prefix, 
+                      cycle,
+                      deconvolution_method,
+                      PSF_metadata, 
+                      mip,
+                      image_dimensions,
+                      chunk_size):
+
     
     """
     Process the images from the given directories.
@@ -619,6 +674,13 @@ def deconvolve_lif(input_dir, output_dir_prefix, cycle=None, PSF_metadata=None, 
     from readlif.reader import LifFile
 
     script_start_time = time.time()
+
+
+    print("\033[96m\033[1m" + "="*60 + "\033[0m")
+    print("\033[96m\033[1m" + 
+          ("Deconvolving Leica files in .lif format") + 
+          "\033[0m")
+    print("\033[96m\033[1m" + "="*60 + "\033[0m")
     
     print("\033[1;96m>> Using Deconvolution method: {} <<\033[0m".format(
         "Deconwolf" if deconvolution_method == "deconwolf" 
@@ -753,8 +815,8 @@ def deconvolve_lif(input_dir, output_dir_prefix, cycle=None, PSF_metadata=None, 
                     res_lateral=float(PSF_metadata['res_lateral']),
                     res_axial=float(PSF_metadata['res_axial']),
                     wavelength=float(PSF_metadata['channels'][channel]['wavelength']),
-                    size_x=tile_size_x,
-                    size_y=tile_size_y,
+                    size_x=image_dimensions[0],
+                    size_y=image_dimensions[1],
                     size_z=size_z
                 ).generate()
                 
