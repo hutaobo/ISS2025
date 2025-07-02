@@ -21,6 +21,7 @@ dependencies:
   - tqdm
   - libtiff
   - openjdk
+  - natsort
 
   # 最后通过 pip 安装特定版本或 PyPI 上的包
   - pip:
