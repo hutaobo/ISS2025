@@ -4,7 +4,7 @@ pandas>=2.0,<2.1    # 兼容 NumPy 1.x
 scikit-image<0.20   # 与 NumPy 1.x ABI 兼容
 ashlar==1.18.0      # 回退到无缺少 quiet 参数的版本
 opencv-python       # cv2 接口
-tifffile>=2025.5    # TIFF 读写
+tifffile==2022.7.28 # TIFF 读写
 aicspylibczi        # .czi 读取
 mat73               # .mat 读取
 readlif             # .lif 读取
