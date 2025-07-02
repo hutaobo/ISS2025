@@ -26,4 +26,5 @@ dependencies:
     - ashlar
     - setuptools
     - requests            # HTTP 请求
+    - -e . 
     # 如果你还有其他只在 PyPI 上的包，也都写这里
