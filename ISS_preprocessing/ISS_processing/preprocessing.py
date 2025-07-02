@@ -21,93 +21,61 @@ import xml.etree.ElementTree as ET
 from natsort import natsorted
 
 
-
-
-
-
 def customcopy(src, dst):
     if os.path.isdir(dst):
         dst = os.path.join(dst, os.path.basename(src))
     shutil.copyfile(src, dst)
+
+
 def zen_OME_tiff(exported_directory, output_directory, channel_split=2, cycle_split=1, num_channels=5):
     '''
     This function makes OME-TIFF files from files exported from as tiff from ZEN, through the process_czi or to the deconvolve_czi functions.
-    
-    Note: This function assumes that you are using the Nilsson SOP for naming files. It will work on 1-tile sections.
-    Args:
-    - exported_directory: directory containing exported TIFF files.
-    - output_directory: directory to save the processed files.
-    - channel_split, cycle_split: indices for splitting filenames.
-    - num_channels: number of channels in the images.
-    
-    Returns:
-    - None. Writes processed images to output_directory.
+    Note: Assumes Nilsson SOP naming. Works on 1-tile sections.
     '''
-
-    # Create the output directory if it doesn't exist
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
-
-    # Filter out TIFF files from the directory
     all_files = os.listdir(exported_directory)
-    tiff_files = [file for file in all_files if '.tif' in file]
-
-    # Split the filenames to extract tiles, channels, and rounds
+    tiff_files = [f for f in all_files if f.endswith('.tif')]
     split_tiles_df = pd.DataFrame(tiff_files)[0].str.split('m', expand=True)
-    split_channels_df = split_tiles_df[0].str.split('_', expand=True)
+    split_ch_df = split_tiles_df[0].str.split('_', expand=True)
     tiles = list(np.unique(split_tiles_df[1]))
-    channels = list(np.unique(split_channels_df[channel_split]))
-    rounds = list(np.unique(split_channels_df[cycle_split]))
+    channels = list(np.unique(split_ch_df[channel_split]))
+    rounds = list(np.unique(split_ch_df[cycle_split]))
 
-    # Iterate through rounds to process files
-    for _, round_number in enumerate(rounds):
-        tiff_files_round = [file for file in tiff_files if f'Base_{round_number}_' in file]
-        metadata_files = [file for file in all_files if 'info.xml' in file]
-        metadata_files_round = [file for file in metadata_files if f'_{round_number}_' in file]
+    for rnd in rounds:
+        files_rnd = [f for f in tiff_files if f'Base_{rnd}_' in f]
+        meta_files = [f for f in all_files if 'info.xml' in f and f'_{rnd}_' in f]
+        for mfile in meta_files:
+            doc = minidom.parse(join(exported_directory, mfile))
+            tiles_xml, xs, ys = [], [], []
+            for b in doc.getElementsByTagName('Bounds'):
+                tiles_xml.append(int(b.attributes['StartM'].value))
+                xs.append(float(b.attributes['StartX'].value))
+                ys.append(float(b.attributes['StartY'].value))
+            uniq = list(np.unique(tiles_xml))
+            pos_df = pd.DataFrame({'x': xs[:len(uniq)], 'y': ys[:len(uniq)]})
+            positions = np.array(pos_df).astype(int)
 
-        # Parse metadata XML files to extract tile positions
-        for metadata_file in metadata_files_round:
-            xml_doc = minidom.parse(os.path.join(exported_directory, metadata_file))
-            tiles_xml, x_coords, y_coords = [], [], []
-            bounds_elements = xml_doc.getElementsByTagName('Bounds')
-            for elem in bounds_elements:
-                tiles_xml.append(int(elem.attributes['StartM'].value))
-                x_coords.append(float(elem.attributes['StartX'].value))
-                y_coords.append(float(elem.attributes['StartY'].value))
-                
-            unique_tiles_xml = list(np.unique(tiles_xml))
-            position_df = pd.DataFrame({
-                'x': x_coords[:len(unique_tiles_xml)],
-                'y': y_coords[:len(unique_tiles_xml)]
-            })
-            positions = np.array(position_df).astype(int)
-
-        # Write processed images to OME-TIFF format
-        with tifffile.TiffWriter(os.path.join(output_directory, f'cycle_{round_number}.ome.tif'), bigtiff=True) as tif:
-            for i in tqdm(range(len(tiles))):
-                position = positions[i]
-                tile = tiles[i]
-                tiff_files_tile = [file for file in tiff_files_round if f'm{tile}' in file and '._' not in file]
-                stacked_images = np.empty((num_channels, 2048, 2048))
-
-                for idx, image_file in enumerate(sorted(tiff_files_tile)):
-                    image_data = tifffile.imread(os.path.join(exported_directory, image_file))
-                    stacked_images[idx] = image_data.astype('uint16')
-
-                pixel_size = 0.1625
-                metadata = {
+        with tifffile.TiffWriter(join(output_directory, f'cycle_{rnd}.ome.tif'), bigtiff=True) as tif:
+            for i, tile in enumerate(tiles):
+                pos = positions[i]
+                tile_files = [f for f in files_rnd if f'm{tile}' in f and not f.startswith('._')]
+                stack = np.empty((num_channels, 2048, 2048), dtype='uint16')
+                for idx, imgf in enumerate(sorted(tile_files)):
+                    img = tifffile.imread(join(exported_directory, imgf))
+                    stack[idx] = img.astype('uint16')
+                pix = 0.1625
+                meta = {
                     'Pixels': {
-                        'PhysicalSizeX': pixel_size,
-                        'PhysicalSizeXUnit': 'µm',
-                        'PhysicalSizeY': pixel_size,
-                        'PhysicalSizeYUnit': 'µm'
+                        'PhysicalSizeX': pix, 'PhysicalSizeXUnit': 'µm',
+                        'PhysicalSizeY': pix, 'PhysicalSizeYUnit': 'µm'
                     },
                     'Plane': {
-                        'PositionX': [position[0] * pixel_size] * stacked_images.shape[0],
-                        'PositionY': [position[1] * pixel_size] * stacked_images.shape[0]
+                        'PositionX': [pos[0]*pix]*stack.shape[0],
+                        'PositionY': [pos[1]*pix]*stack.shape[0]
                     }
                 }
-                tif.write(stacked_images.astype('uint16'), metadata=metadata)
+                tif.write(stack, metadata=meta)
 
 
 def leica_mipping(input_dirs, output_dir_prefix, image_dimension=[2048, 2048], mode=None):
@@ -401,14 +369,14 @@ def leica_OME_tiff(directory_base, output_directory):
 
 
 def ashlar_wrapper(
-    files, 
-    output='', 
-    align_channel=1, 
-    flip_x=False, 
-    flip_y=True, 
-    output_channels=None, 
-    maximum_shift=500, 
-    filter_sigma=5.0, 
+    files,
+    output='',
+    align_channel=1,
+    flip_x=False,
+    flip_y=True,
+    output_channels=None,
+    maximum_shift=500,
+    filter_sigma=5.0,
     filename_format='Round{cycle}_{channel}.tif',
     pyramid=False,
     tile_size=None,
@@ -416,44 +384,27 @@ def ashlar_wrapper(
     dfp=False,
     plates=False,
     quiet=False,
-    version=False):
+    version=False
+):
     """
-    Wrapper function for the Ashlar tool for image alignment and mosaicking.
-    
-    Args:
-    - files (list): List of input image file paths.
-    - output (str): Directory path to save the output images.
-    - ... (other args): Various configuration parameters for image processing.
-    
-    Returns:
-    - int: 1 for errors, else the output of the Ashlar processing function.
+    Wrapper for Ashlar alignment and mosaicking, with keyword-only parameter calls.
     """
-    
     ashlar.configure_terminal()
-    
     filepaths = files
     output_path = pathlib.Path(output)
+    import warnings; warnings.filterwarnings('ignore')
 
-    import warnings
-    warnings.filterwarnings("ignore")   
-
-    # make directory
-    if not os.path.exists(output):
-        os.makedirs(output)
-
+    if not os.path.exists(output): os.makedirs(output)
     if tile_size and not pyramid:
         ashlar.print_error("--tile-size can only be used with --pyramid")
         return 1
-    if tile_size is None:
-        # Implement default value logic as mentioned in argparser setup above.
-        tile_size = tile_size
 
+    # flat/dark-field profiles
     ffp_paths = ffp
     if ffp_paths:
         if len(ffp_paths) not in (0, 1, len(filepaths)):
             ashlar.print_error(
-                "Wrong number of flat-field profiles. Must be 1, or {}"
-                " (number of input files)".format(len(filepaths))
+                f"Wrong number of flat-field profiles. Must be 1, or {len(filepaths)}"
             )
             return 1
         if len(ffp_paths) == 1:
@@ -463,45 +414,55 @@ def ashlar_wrapper(
     if dfp_paths:
         if len(dfp_paths) not in (0, 1, len(filepaths)):
             ashlar.print_error(
-                "Wrong number of dark-field profiles. Must be 1, or {}"
-                " (number of input files)".format(len(filepaths))
+                f"Wrong number of dark-field profiles. Must be 1, or {len(filepaths)}"
             )
             return 1
         if len(dfp_paths) == 1:
             dfp_paths = dfp_paths * len(filepaths)
 
-    aligner_args = {}
-    aligner_args['channel'] = align_channel
-    aligner_args['verbose'] = not quiet
-    aligner_args['max_shift'] = maximum_shift
-    aligner_args['filter_sigma'] = filter_sigma
-
+    aligner_args = {
+        'channel': align_channel,
+        'verbose': not quiet,
+        'max_shift': maximum_shift,
+        'filter_sigma': filter_sigma
+    }
     mosaic_args = {}
-    if output_channels:
-        mosaic_args['channels'] = output_channels
-    if pyramid:
-        mosaic_args['tile_size'] = tile_size
-    if quiet is False:
-        mosaic_args['verbose'] = True
+    if output_channels: mosaic_args['channels'] = output_channels
+    if pyramid: mosaic_args['tile_size'] = tile_size
+    if not quiet: mosaic_args['verbose'] = True
 
     try:
         if plates:
             return ashlar.process_plates(
-                filepaths, output_path, filename_format, flip_x,
-                flip_y, ffp_paths, dfp_paths, aligner_args, mosaic_args,
-                pyramid, quiet
+                filepaths=filepaths,
+                output_dir=output_path,
+                filename_format=filename_format,
+                flip_x=flip_x,
+                flip_y=flip_y,
+                ffp_paths=ffp_paths,
+                dfp_paths=dfp_paths,
+                aligner_args=aligner_args,
+                mosaic_args=mosaic_args,
+                pyramid=pyramid,
+                quiet=quiet
             )
         else:
-            mosaic_path_format = str(output_path / filename_format)
+            mosaic_fmt = str(output_path / filename_format)
             return ashlar.process_single(
-                filepaths, mosaic_path_format, flip_x, flip_y,
-                ffp_paths, dfp_paths, aligner_args, mosaic_args, pyramid,
-                quiet
+                filepaths=filepaths,
+                mosaic_path_format=mosaic_fmt,
+                flip_x=flip_x,
+                flip_y=flip_y,
+                ffp_paths=ffp_paths,
+                dfp_paths=dfp_paths,
+                aligner_args=aligner_args,
+                mosaic_args=mosaic_args,
+                pyramid=pyramid,
+                quiet=quiet
             )
     except ashlar.ProcessingError as e:
         ashlar.print_error(str(e))
         return 1
-
 
 
 def reshape_split(image: np.ndarray, kernel_size: tuple):
