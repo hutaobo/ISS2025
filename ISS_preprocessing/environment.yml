@@ -1,32 +1,38 @@
 name: ISS_preprocessing            # 环境名字，可随意改
 channels:
-  - conda-forge          # 强烈推荐 conda-forge，以保证科学计算包兼容
-  - bioconda             # 如果有生物信息学包需求
+  - conda-forge                  # 强烈推荐 conda-forge，以保证科学计算包兼容
+  - bioconda                     # 如果有生物信息学包需求
   - defaults
 
 dependencies:
-  - python=3.10          # 指定 Python 版本
-  - pip                  # 让后面能通过 pip 安装
+  # 1. 指定 Python 版本
+  - python=3.10
 
-  # 以下是你希望用 conda 安装的包（可选，也可以全部交给 pip）
-  - numpy<2.0            # 强制 1.x 系列，避免 ABI 冲突
-  - scipy>=1.10,<1.11
-  - pandas>=2.0,<2.1
-  - scikit-image<0.20
-  - opencv                # conda-forge 上的 opencv
-  - tifffile              # 有时也可用 conda-forge
-  - aicspylibczi
-  - mat73
-  - readlif
-  - tqdm
-  - libtiff
-  - openjdk
-  - natsort
+  # 2. 主流科学计算包，从 conda-forge 安装，保证 ABI 兼容
+  - numpy<2.0                    # 保持在 1.x 系列，避免与 scikit-image 等二进制不兼容
+  - scipy>=1.10,<1.11            # 与 NumPy 1.x 匹配
+  - pandas>=2.0,<2.1             # 兼容 NumPy 1.x
+  - scikit-image<0.20            # 与 NumPy 1.x ABI 兼容
 
-  # 最后通过 pip 安装特定版本或 PyPI 上的包
+  # 3. 其他 C 扩展包
+  - opencv                       # 开放式计算机视觉库
+  - aicspylibczi                 # Leica .czi 文件读取
+  - mat73                        # MATLAB .mat 文件读取
+  - readlif                      # Leica .lif 文件读取
+  - tqdm                         # 进度条
+  - libtiff                      # TIFF 库
+  - openjdk=11                   # 提供 javac，满足 pyjnius 依赖
+  - natsort                      # 自然排序
+
+  # 4. 安装与 Ashlar 1.18.0 兼容的 tifffile 旧版本
+  - tifffile=2022.4.8            # 避免与新版 tifffile 的弃用参数冲突
+
+  # 5. pip 本身
+  - pip
+
+  # 6. 通过 pip 安装特定版本或 PyPI 上的包
   - pip:
-    - ashlar
-    - setuptools
-    - requests            # HTTP 请求
-    - -e . 
-    # 如果你还有其他只在 PyPI 上的包，也都写这里
+    - ashlar==1.18.0             # 回退到带默认 quiet 参数的版本
+    - requests                   # HTTP 请求工具
+    - setuptools                 # 安装工具
+    - -e .                       # 可编辑安装当前项目
