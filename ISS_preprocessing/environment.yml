@@ -19,9 +19,11 @@ dependencies:
   - mat73
   - readlif
   - tqdm
+  - libtiff
 
   # 最后通过 pip 安装特定版本或 PyPI 上的包
   - pip:
     - ashlar
+    - setuptools
     - requests            # HTTP 请求
     # 如果你还有其他只在 PyPI 上的包，也都写这里
