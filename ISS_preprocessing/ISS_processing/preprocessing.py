@@ -450,11 +450,12 @@ def ashlar_wrapper(
             mosaic_fmt = str(output_path / filename_format)
             return ashlar.process_single(
                 filepaths=filepaths,
-                mosaic_path_format=mosaic_fmt,
+                output_path_format=mosaic_fmt,
                 flip_x=flip_x,
                 flip_y=flip_y,
                 ffp_paths=ffp_paths,
                 dfp_paths=dfp_paths,
+                barrel_correction=0,
                 aligner_args=aligner_args,
                 mosaic_args=mosaic_args,
                 pyramid=pyramid,
