@@ -25,7 +25,7 @@ dependencies:
   - natsort                      # 自然排序
 
   # 4. 安装与 Ashlar 1.18.0 兼容的 tifffile 旧版本
-  - tifffile=2022.4.8            # 避免与新版 tifffile 的弃用参数冲突
+  - tifffile=2023.3.15           # 避免与新版 tifffile 的弃用参数冲突
 
   # 5. pip 本身
   - pip
