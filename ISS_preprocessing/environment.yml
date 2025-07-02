@@ -1,0 +1,27 @@
+name: ISS_preprocessing            # 环境名字，可随意改
+channels:
+  - conda-forge          # 强烈推荐 conda-forge，以保证科学计算包兼容
+  - bioconda             # 如果有生物信息学包需求
+  - defaults
+
+dependencies:
+  - python=3.10          # 指定 Python 版本
+  - pip                  # 让后面能通过 pip 安装
+
+  # 以下是你希望用 conda 安装的包（可选，也可以全部交给 pip）
+  - numpy<2.0            # 强制 1.x 系列，避免 ABI 冲突
+  - scipy>=1.10,<1.11
+  - pandas>=2.0,<2.1
+  - scikit-image<0.20
+  - opencv                # conda-forge 上的 opencv
+  - tifffile              # 有时也可用 conda-forge
+  - aicspylibczi
+  - mat73
+  - readlif
+  - tqdm
+
+  # 最后通过 pip 安装特定版本或 PyPI 上的包
+  - pip:
+    - ashlar
+    - requests            # HTTP 请求
+    # 如果你还有其他只在 PyPI 上的包，也都写这里
