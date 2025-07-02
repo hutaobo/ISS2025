@@ -20,7 +20,7 @@ dependencies:
   - readlif
   - tqdm
   - libtiff
-  - openjdk=11    
+  - openjdk
 
   # 最后通过 pip 安装特定版本或 PyPI 上的包
   - pip:
